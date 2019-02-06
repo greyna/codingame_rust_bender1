@@ -23,7 +23,7 @@ enum Cell {
 }
 
 impl Cell {
-    fn new(c: &char) -> Cell {
+    fn new(c: char) -> Cell {
         match c {
             '@' => Cell::Start,
             '#' => Cell::Wall,
@@ -54,7 +54,7 @@ impl Map {
         for (i, row) in rows.iter().enumerate() {
             cells.push(Vec::new());
             for cell_char in row.chars() {
-                cells[i].push(Cell::new(&cell_char));
+                cells[i].push(Cell::new(cell_char));
             }
         }
         Map(cells)
@@ -101,7 +101,7 @@ impl Bender {
 fn parse_input() -> (u32, u32, Vec<String>) {
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
-    let inputs = input_line.split(" ").collect::<Vec<_>>();
+    let inputs = input_line.split(' ').collect::<Vec<_>>();
     let rows_count: u32 = inputs[0].trim().parse().unwrap();
     let columns_count: u32 = inputs[1].trim().parse().unwrap();
     
