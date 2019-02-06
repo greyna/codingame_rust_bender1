@@ -1,0 +1,7 @@
+[package]
+name = "codingame_rust_bender1"
+version = "0.1.0"
+authors = ["Arthur Van Ceulen <vandekeu@gmail.com>"]
+edition = "2018"
+
+[dependencies]
