@@ -45,6 +45,7 @@ impl Cell {
 #[derive(Debug)]
 struct Map(Vec<Vec<Cell>>);
 
+#[derive(Debug, Clone)]
 struct Position(u32, u32);
 
 impl Map {
@@ -70,9 +71,11 @@ impl Map {
 
     fn find(&self, cell_to_find: Cell) -> Vec<Position> {
         self.0.iter().enumerate()
-            .flat_map(|(x, row)| row.iter().enumerate()
+            .flat_map(|(x, row)| {
+                row.iter().enumerate()
                 .filter(|(_, cell)| cell_to_find == **cell)
-                .map(|(y, _)| Position(x.clone() as u32, y.clone() as u32)))
+                .map(move |(y, _)| Position(x as u32, y as u32))
+            })
             .collect()
     }
 }
@@ -87,7 +90,7 @@ struct Bender {
 impl Bender {
     fn new(map: &Map) -> Bender {
         Bender {
-            pos: map.find(Cell::Start).first().unwrap(),
+            pos: map.find(Cell::Start).first().unwrap().clone(),
             dir: Direction::South,
             drunk: false,
             inverted: false,
