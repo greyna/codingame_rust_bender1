@@ -1,12 +1,25 @@
 use std::io;
 use std::collections::HashMap;
+use std::fmt;
+use std::fmt::Write;
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 enum Direction {
     North,
     South,
     East,
     West
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", match self {
+            Direction::South => "SOUTH",
+            Direction::East => "EAST",
+            Direction::North => "NORTH",
+            Direction::West => "WEST",
+        })
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -45,8 +58,8 @@ impl Cell {
 #[derive(Debug)]
 struct Map(Vec<Vec<Cell>>);
 
-#[derive(Debug, Clone)]
-struct Position(u32, u32);
+#[derive(Debug, Clone, Copy)]
+struct Position(usize, usize);
 
 impl Map {
     fn new(rows: Vec<String>) -> Map {
@@ -61,11 +74,15 @@ impl Map {
     }
 
     fn get(&self, pos: Position) -> &Cell {
-        &self.0[pos.0 as usize][pos.1 as usize]
+        &self.0[pos.0][pos.1]
     }
 
     fn surroundings(&self, pos: Position) -> HashMap<Direction, &Cell> {
         let mut result = HashMap::new();
+        result.insert(Direction::North, &self.0[pos.0][pos.1 - 1]);
+        result.insert(Direction::South, &self.0[pos.0][pos.1 + 1]);
+        result.insert(Direction::East, &self.0[pos.0 + 1][pos.1]);
+        result.insert(Direction::West, &self.0[pos.0 - 1][pos.1]);
         result
     }
 
@@ -73,18 +90,20 @@ impl Map {
         self.0.iter().enumerate()
             .flat_map(|(x, row)| {
                 row.iter().enumerate()
-                .filter(|(_, cell)| cell_to_find == **cell)
-                .map(move |(y, _)| Position(x as u32, y as u32))
+                    .filter(|(_, cell)| cell_to_find == **cell)
+                    .map(move |(y, _)| Position(x, y))
             })
             .collect()
     }
 }
 
+#[derive(Debug)]
 struct Bender {
     pos: Position,
     dir: Direction,
     drunk: bool,
     inverted: bool,
+    dead: bool,
 }
 
 impl Bender {
@@ -94,19 +113,61 @@ impl Bender {
             dir: Direction::South,
             drunk: false,
             inverted: false,
+            dead: false,
+        }
+    }
+    
+    fn step(&mut self, map: &Map) {
+        self.turn(map);
+        self.move_forward();
+        self.apply_cell_effect(map);
+    }
+    
+    fn turn(&mut self, map: &Map) {
+        match map.surroundings(self.pos).get(&self.dir).unwrap() {
+            Cell::Wall | Cell::Obstacle => {
+                self.dir = self.next_dir();
+                self.turn(map)
+            },
+            _ => (),
+        }
+    }
+    
+    fn next_dir(&self) -> Direction {
+        match self.dir {
+            Direction::South => Direction::East,
+            Direction::East => Direction::North,
+            Direction::North => Direction::West,
+            Direction::West => Direction::South,
+        }
+    }
+    
+    fn move_forward(&mut self) {
+        match self.dir {
+            Direction::South => self.pos.1 += 1,
+            Direction::East => self.pos.0 += 1,
+            Direction::North => self.pos.1 -= 1,
+            Direction::West => self.pos.0 -= 1,
+        }
+    }
+    
+    fn apply_cell_effect(&mut self, map: &Map) {
+        match map.get(self.pos) {
+            Cell::Suicide => self.dead = true,
+            _ => ()
         }
     }
 }
 
-fn parse_input() -> (u32, u32, Vec<String>) {
+fn parse_input() -> (usize, usize, Vec<String>) {
     let mut input_line = String::new();
     io::stdin().read_line(&mut input_line).unwrap();
     let inputs = input_line.split(' ').collect::<Vec<_>>();
-    let rows_count: u32 = inputs[0].trim().parse().unwrap();
-    let columns_count: u32 = inputs[1].trim().parse().unwrap();
+    let rows_count: usize = inputs[0].trim().parse().unwrap();
+    let columns_count: usize = inputs[1].trim().parse().unwrap();
     
     let mut rows = Vec::new();
-    for _ in 0..rows_count as u32 {
+    for _ in 0..rows_count {
         let mut input_line = String::new();
         io::stdin().read_line(&mut input_line).unwrap();
         let row = input_line.trim_right().to_string();
@@ -117,7 +178,24 @@ fn parse_input() -> (u32, u32, Vec<String>) {
 }
 
 fn solve(map: Map) -> String {
-    String::from("LOOP")
+    let mut directions = Vec::new();
+    let mut bender = Bender::new(&map);
+    
+    let mut i = 0;
+    while !bender.dead {
+        if i < 15 {
+            eprintln!("step {}: Bender = {:?}", i, bender);
+            i += 1;
+        }
+        bender.step(&map);
+        directions.push(bender.dir.clone());
+    }
+    
+    let mut result = String::new();
+    for dir in directions.iter() {
+        write!(&mut result, "{}\n", dir).unwrap();
+    }
+    result
 }
 
 fn main() {
@@ -125,7 +203,7 @@ fn main() {
     let map = Map::new(rows);
     eprintln!("{:?}", map);
     
-    println!("{}", solve(map));
+    print!("{}", solve(map));
 }
 
 
@@ -160,7 +238,7 @@ mod tests {
 "SOUTH
 SOUTH
 EAST
-EAST";
+EAST\n";
 
         let output = solve(Map::new(rows));
         assert_eq!(output, expectation);
