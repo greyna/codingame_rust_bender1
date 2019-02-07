@@ -22,8 +22,9 @@ impl fmt::Display for Direction {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Cell {
+    Invalid,
     Start,
     Wall,
     Empty,
@@ -62,12 +63,11 @@ struct Map(Vec<Vec<Cell>>);
 struct Position(usize, usize);
 
 impl Map {
-    fn new(rows: Vec<String>) -> Map {
-        let mut cells = Vec::new();
-        for (i, row) in rows.iter().enumerate() {
-            cells.push(Vec::new());
-            for cell_char in row.chars() {
-                cells[i].push(Cell::new(cell_char));
+    fn new(rows_count: usize, columns_count: usize, rows: Vec<String>) -> Map {
+        let mut cells = vec![vec![Cell::Invalid; rows_count]; columns_count];
+        for (y, row) in rows.iter().enumerate() {
+            for (x, cell_char) in row.chars().enumerate() {
+                cells[x][y] = Cell::new(cell_char);
             }
         }
         Map(cells)
@@ -124,7 +124,11 @@ impl Bender {
     }
     
     fn turn(&mut self, map: &Map) {
-        match map.surroundings(self.pos).get(&self.dir).unwrap() {
+        let cell = map.surroundings(self.pos).get(&self.dir).unwrap().clone();
+        dbg!(&self.pos);
+        dbg!(&self.dir);
+        dbg!(&cell);
+        match cell {
             Cell::Wall | Cell::Obstacle => {
                 self.dir = self.next_dir();
                 self.turn(map)
@@ -181,12 +185,10 @@ fn solve(map: Map) -> String {
     let mut directions = Vec::new();
     let mut bender = Bender::new(&map);
     
-    let mut i = 0;
-    while !bender.dead {
-        if i < 15 {
-            eprintln!("step {}: Bender = {:?}", i, bender);
-            i += 1;
-        }
+    let mut step = 0;
+    while !bender.dead && step < 15 {
+        dbg!(step);
+        step += 1;
         bender.step(&map);
         directions.push(bender.dir.clone());
     }
@@ -199,8 +201,8 @@ fn solve(map: Map) -> String {
 }
 
 fn main() {
-    let (_, _, rows) = parse_input();
-    let map = Map::new(rows);
+    let (rows_count, columns_count, rows) = parse_input();
+    let map = Map::new(rows_count, columns_count, rows);
     eprintln!("{:?}", map);
     
     print!("{}", solve(map));
@@ -220,7 +222,7 @@ mod tests {
 #  $#
 #####";
         let rows: Vec<String> = input.split("\n").map(|s| String::from(s)).collect();
-        let map = Map::new(rows);
+        let map = Map::new(5, 5, rows);
         eprintln!("{:?}", map);
     }
 
@@ -240,7 +242,35 @@ SOUTH
 EAST
 EAST\n";
 
-        let output = solve(Map::new(rows));
+        let output = solve(Map::new(5, 5, rows));
+        assert_eq!(output, expectation);
+    }
+    
+    #[test]
+    fn test_02() {
+        let input =
+"########
+# @    #
+#     X#
+# XXX  #
+#   XX #
+#   XX #
+#     $#
+########";
+        let rows: Vec<String> = input.split("\n").map(|s| String::from(s)).collect();
+
+        let expectation =
+"SOUTH
+EAST
+EAST
+EAST
+SOUTH
+EAST
+SOUTH
+SOUTH
+SOUTH\n";
+
+        let output = solve(Map::new(8, 8, rows));
         assert_eq!(output, expectation);
     }
 }
